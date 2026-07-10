@@ -1,10 +1,11 @@
 from typing import List
 
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Header, HTTPException
 
 from ..config import Config
 from ..exceptions import IngestError
 from ..ingestion.pipeline import IngestionPipeline
+from ..rag.chain import get_rag_chain
 from .schemas import AskRequest, AskResponse, IngestRequest, SourceSnippet
 
 router = APIRouter()
@@ -47,13 +48,18 @@ def ingest_profile(
 
 
 @router.post("/ask-profile", response_model=AskResponse)
-def ask_profile(req: AskRequest, request: Request):
+def ask_profile(req: AskRequest):
     """
-    Takes a natural language question and returns:
-    - answer: the LLM's answer grounded in your profile data
+    Takes a natural language question + profile_id and returns:
+    - answer: the LLM's answer grounded ONLY in that profile's data
     - sources: small snippets of the profile used to answer
+
+    profile_id selects which Chroma collection to query, so two different
+    profile_ids always retrieve from two different, isolated collections.
     """
-    rag = request.app.state.rag  # callable from get_rag_chain()
+    config = Config.from_env()
+    print(req)
+    rag = get_rag_chain(config, req.profile_id)
 
     result = rag(req.question)
 

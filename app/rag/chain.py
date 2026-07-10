@@ -1,3 +1,4 @@
+from functools import lru_cache
 from typing import Any, Callable, Dict
 
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -15,21 +16,27 @@ def _format_docs(docs) -> str:
     return "\n\n".join(doc.page_content for doc in docs)
 
 
-def get_rag_chain(config: Config = None) -> RagCallable:
+@lru_cache(maxsize=1)
+def _get_llm(model_name: str) -> ChatGoogleGenerativeAI:
+    """The LLM client is cheap to reuse across profiles/requests — cache it."""
+    return ChatGoogleGenerativeAI(model=model_name, temperature=0.0)
+
+
+def get_rag_chain(config: Config, profile_id: str) -> RagCallable:
     """
-    Create a simple RAG pipeline using Gemini as the LLM.
+    Build a RAG pipeline scoped to a single profile's Chroma collection.
+
+    Called per-request with the profile_id from the incoming question, so two
+    different profile_ids always retrieve from two different collections and
+    can never answer using each other's data. The embedding model and LLM
+    client are cached process-wide (see _get_embeddings / _get_llm); only the
+    lightweight retriever/chain wiring is rebuilt per call.
 
     Returns a callable: rag(question: str) -> {"result": answer, "source_documents": docs}
     """
-    config = config or Config.from_env()
-
-    vectorstore = get_vectorstore(config)
+    vectorstore = get_vectorstore(config, profile_id)
     retriever = vectorstore.as_retriever(search_kwargs={"k": config.retriever_k})
-
-    llm = ChatGoogleGenerativeAI(
-        model=config.llm_model,
-        temperature=0.0,
-    )
+    llm = _get_llm(config.llm_model)
 
     chain = (
         {

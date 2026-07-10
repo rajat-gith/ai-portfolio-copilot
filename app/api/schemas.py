@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 class AskRequest(BaseModel):
     question: str
+    profile_id: str
 
 
 class SourceSnippet(BaseModel):

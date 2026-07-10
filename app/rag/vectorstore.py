@@ -1,18 +1,30 @@
+from functools import lru_cache
+
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 
 from ..config import Config
+from ..vectorstore_naming import collection_name_for_profile
 
 
-def get_vectorstore(config: Config) -> Chroma:
+@lru_cache(maxsize=1)
+def _get_embeddings(model_name: str) -> HuggingFaceEmbeddings:
+    """Loading the embedding model is the expensive part — cache it process-wide
+    instead of reloading it on every request/profile."""
+    return HuggingFaceEmbeddings(model_name=model_name)
+
+
+def get_vectorstore(config: Config, profile_id: str) -> Chroma:
     """
-    Load the persisted Chroma vector store from disk.
+    Load this profile's own persisted Chroma collection.
 
-    Uses the same embedding model name as ingestion (app.ingestion.vectorstore_manager),
-    sourced from the shared Config, so retrieval always matches what was indexed.
+    Uses the same embedding model name and collection-naming scheme as
+    ingestion (app.ingestion.vectorstore_manager), so retrieval always reads
+    back exactly what was indexed for that profile_id — never another one's.
     """
-    embeddings = HuggingFaceEmbeddings(model_name=config.embedding_model)
+    embeddings = _get_embeddings(config.embedding_model)
     return Chroma(
+        collection_name=collection_name_for_profile(profile_id),
         embedding_function=embeddings,
         persist_directory=str(config.vectorstore_dir),
     )
