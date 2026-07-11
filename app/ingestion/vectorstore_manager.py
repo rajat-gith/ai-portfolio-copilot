@@ -2,7 +2,7 @@ from typing import List
 
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_chroma import Chroma
 
 from ..config import Config
@@ -58,7 +58,7 @@ class VectorStoreManager:
         collection_name = collection_name_for_profile(profile_id)
         try:
             logger.info("Initializing embeddings model...")
-            embeddings = HuggingFaceEmbeddings(model_name=self.config.embedding_model)
+            embeddings = GoogleGenerativeAIEmbeddings(model=self.config.embedding_model)
 
             # Wipe any previous collection for this profile first, so a re-ingest
             # is a clean rebuild rather than old + new chunks piling up together.

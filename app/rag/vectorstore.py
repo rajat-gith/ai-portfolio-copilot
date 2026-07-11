@@ -1,17 +1,16 @@
 from functools import lru_cache
 
 from langchain_chroma import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 from ..config import Config
 from ..vectorstore_naming import collection_name_for_profile
 
 
 @lru_cache(maxsize=1)
-def _get_embeddings(model_name: str) -> HuggingFaceEmbeddings:
-    """Loading the embedding model is the expensive part — cache it process-wide
-    instead of reloading it on every request/profile."""
-    return HuggingFaceEmbeddings(model_name=model_name)
+def _get_embeddings(model_name: str) -> GoogleGenerativeAIEmbeddings:
+    """Loading the embedding model is process-wide cached"""
+    return GoogleGenerativeAIEmbeddings(model=model_name)
 
 
 def get_vectorstore(config: Config, profile_id: str) -> Chroma:

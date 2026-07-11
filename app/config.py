@@ -24,7 +24,7 @@ class Config(BaseModel):
 
     # Embedding / LLM model names, shared by ingestion and the RAG chain
     # so both sides always agree on which embedding model produced the vectors.
-    embedding_model: str = Field(default='sentence-transformers/all-MiniLM-L6-v2')
+    embedding_model: str = Field(default='text-embedding-004')
     llm_model: str = Field(default='gemini-2.5-flash')
     retriever_k: int = Field(default=4, ge=1, le=20)
 
@@ -61,7 +61,7 @@ class Config(BaseModel):
             vectorstore_dir=Path(os.getenv('VECTORSTORE_DIR', 'data/vectorstore')),
             chunk_size=int(os.getenv('CHUNK_SIZE', 800)),
             chunk_overlap=int(os.getenv('CHUNK_OVERLAP', 150)),
-            embedding_model=os.getenv('EMBEDDING_MODEL', 'sentence-transformers/all-MiniLM-L6-v2'),
+            embedding_model=os.getenv('EMBEDDING_MODEL', 'gemini-embedding-2'),
             llm_model=os.getenv('LLM_MODEL', 'gemini-2.5-flash'),
             retriever_k=int(os.getenv('RETRIEVER_K', 4)),
             request_timeout=int(os.getenv('REQUEST_TIMEOUT', 30)),
