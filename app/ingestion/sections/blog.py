@@ -52,6 +52,7 @@ def build_documents(cms_client: CMSClient, profile_id: str) -> List[Document]:
                     "profile_id": profile_id,
                     "blog_id": str(blog.get("_id", "")),
                     "is_published": is_published,
+                    "title": safe_get(blog, "title"),
                 },
             )
         )

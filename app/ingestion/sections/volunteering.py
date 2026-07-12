@@ -51,6 +51,7 @@ def build_documents(cms_client: CMSClient, profile_id: str) -> List[Document]:
                     "section": SECTION,
                     "profile_id": profile_id,
                     "volunteering_id": str(vol.get("Id", "")),
+                    "title": f"{role} at {organization}",
                 },
             )
         )

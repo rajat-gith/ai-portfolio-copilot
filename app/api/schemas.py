@@ -10,12 +10,18 @@ class AskRequest(BaseModel):
 
 class SourceSnippet(BaseModel):
     section: Optional[str] = None
+    title: Optional[str] = None
     snippet: str
+    relevance_score: float
 
 
 class AskResponse(BaseModel):
     answer: str
     sources: List[SourceSnippet]
+    # "grounded" = at least one source cleared the relevance threshold;
+    # "low_confidence" = only the best-effort fallback sources were used.
+    # Lets a UI visually flag answers it should trust less.
+    confidence: str
 
 
 class IngestRequest(BaseModel):

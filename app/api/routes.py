@@ -5,7 +5,7 @@ from fastapi import APIRouter, Header, HTTPException
 from ..config import Config
 from ..exceptions import IngestError
 from ..ingestion.pipeline import IngestionPipeline
-from ..rag.chain import get_rag_chain
+from ..rag.chain import MIN_RELEVANCE_SCORE, get_rag_chain
 from .schemas import AskRequest, AskResponse, IngestRequest, SourceSnippet
 
 router = APIRouter()
@@ -58,19 +58,35 @@ def ask_profile(req: AskRequest):
     profile_ids always retrieve from two different, isolated collections.
     """
     config = Config.from_env()
-    print(req)
     rag = get_rag_chain(config, req.profile_id)
 
     result = rag(req.question)
 
     answer: str = result.get("result", "")
     source_docs = result.get("source_documents", []) or []
+    source_scores = result.get("source_scores", []) or []
 
     sources: List[SourceSnippet] = []
-    for doc in source_docs:
+    for doc, score in zip(source_docs, source_scores):
         meta = doc.metadata or {}
-        section = meta.get("section")
-        snippet = doc.page_content[:SNIPPET_PREVIEW_LENGTH]
-        sources.append(SourceSnippet(section=section, snippet=snippet))
+        sources.append(
+            SourceSnippet(
+                section=meta.get("section"),
+                title=meta.get("title"),
+                snippet=_snippet(doc.page_content),
+                relevance_score=round(score, 3),
+            )
+        )
 
-    return AskResponse(answer=answer, sources=sources)
+    confidence = "grounded" if any(s.relevance_score >= MIN_RELEVANCE_SCORE for s in sources) else "low_confidence"
+
+    return AskResponse(answer=answer, sources=sources, confidence=confidence)
+
+
+def _snippet(text: str, limit: int = SNIPPET_PREVIEW_LENGTH) -> str:
+    """Truncate on a word boundary instead of slicing mid-word."""
+    text = text.strip()
+    if len(text) <= limit:
+        return text
+    cut = text[:limit].rsplit(" ", 1)[0]
+    return cut + "…"

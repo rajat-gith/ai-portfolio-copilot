@@ -64,6 +64,7 @@ def build_documents(cms_client: CMSClient, profile_id: str) -> List[Document]:
                     "section": SECTION,
                     "profile_id": profile_id,
                     "education_id": str(edu.get("_id", "")),
+                    "title": f"{degree} — {institute}",
                 },
             )
         )

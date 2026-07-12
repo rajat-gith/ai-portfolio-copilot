@@ -58,6 +58,7 @@ def build_documents(cms_client: CMSClient, profile_id: str) -> List[Document]:
                     "section": SECTION,
                     "profile_id": profile_id,
                     "experience_id": str(exp.get("_id", "")),
+                    "title": f"{title} at {company}",
                 },
             )
         )
