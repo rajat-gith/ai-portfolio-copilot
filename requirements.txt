@@ -18,8 +18,8 @@ langchain-google-genai>=2.0.0
 openai>=2.0.0
 
 # Vector Database & Embeddings
-langchain-pinecone
-pinecone
+langchain-pinecone>=0.2.0
+pinecone>=6.0.0
 
 # Deep Learning & NLP Core
 numpy>=1.26.0
