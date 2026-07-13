@@ -62,7 +62,7 @@ class IngestionPipeline:
                 split_docs = vectorstore_manager.split_documents(documents)
                 self.stats['chunks_created'] = len(split_docs)
 
-                vectorstore_manager.persist_to_chroma(split_docs, profile_id)
+                vectorstore_manager.persist_to_pinecone(split_docs, profile_id)
 
             self.stats['end_time'] = datetime.now()
             duration = (self.stats['end_time'] - self.stats['start_time']).total_seconds()

@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 from typing import Optional
 from pydantic import BaseModel, Field, field_validator
 from dotenv import load_dotenv
@@ -17,14 +16,35 @@ class Config(BaseModel):
     # can ingest data for many different CMS tenants/credentials.
     cms_base_url: str = Field(..., env='CMS_BASE_URL')
 
-    # Vector store / Processing
-    vectorstore_dir: Path = Field(default=Path('data/vectorstore'))
+    # Vector store: Pinecone. One shared index, one namespace per profile_id
+    # (namespaces are how Pinecone isolates one profile's vectors from
+    # another's within a single index — see app/vectorstore_naming.py).
+    pinecone_api_key: str = Field(..., env='PINECONE_API_KEY')
+    pinecone_index_name: str = Field(default='ai-portfolio-copilot')
+    pinecone_cloud: str = Field(default='aws')
+    pinecone_region: str = Field(default='us-east-1')
+    # The embedding model (gemini-embedding-001) natively outputs 3072 dims;
+    # we truncate to this via output_dimensionality (see embedding_model
+    # comment below) so the vectors fit a smaller/cheaper Pinecone index.
+    # If you change this, you must also delete and recreate the Pinecone
+    # index — dimension is fixed at index-creation time and can't be altered
+    # in place.
+    embedding_dimension: int = Field(default=768, ge=1)
+
     chunk_size: int = Field(default=800, ge=100, le=2000)
     chunk_overlap: int = Field(default=150, ge=0, le=500)
 
     # Embedding / LLM model names, shared by ingestion and the RAG chain
     # so both sides always agree on which embedding model produced the vectors.
-    embedding_model: str = Field(default='text-embedding-004')
+    #
+    # NOTE: text-embedding-004 (this project's original default) was
+    # deprecated by Google on 2026-01-14 and is no longer callable. Use
+    # gemini-embedding-001 instead, with output_dimensionality set to
+    # embedding_dimension above (768) so it stays a drop-in replacement for
+    # the old model's native size — Google's default for this model is
+    # actually 3072-dim, which is what caused the Pinecone dimension
+    # mismatch error.
+    embedding_model: str = Field(default='gemini-embedding-001')
     llm_model: str = Field(default='gemini-2.5-flash')
     retriever_k: int = Field(default=4, ge=1, le=20)
 
@@ -44,12 +64,6 @@ class Config(BaseModel):
             raise ValueError('CMS_BASE_URL must start with http:// or https://')
         return v.rstrip('/')
 
-    @field_validator('vectorstore_dir')
-    @classmethod
-    def ensure_dir(cls, v):
-        v.mkdir(parents=True, exist_ok=True)
-        return v
-
     class ConfigDict:
         env_prefix = ''
 
@@ -58,10 +72,14 @@ class Config(BaseModel):
         """Load configuration from environment variables"""
         return cls(
             cms_base_url=os.getenv('CMS_BASE_URL', ''),
-            vectorstore_dir=Path(os.getenv('VECTORSTORE_DIR', 'data/vectorstore')),
+            pinecone_api_key=os.getenv('PINECONE_API_KEY', ''),
+            pinecone_index_name=os.getenv('PINECONE_INDEX_NAME', 'ai-portfolio-copilot'),
+            pinecone_cloud=os.getenv('PINECONE_CLOUD', 'aws'),
+            pinecone_region=os.getenv('PINECONE_REGION', 'us-east-1'),
+            embedding_dimension=int(os.getenv('EMBEDDING_DIMENSION', 768)),
             chunk_size=int(os.getenv('CHUNK_SIZE', 800)),
             chunk_overlap=int(os.getenv('CHUNK_OVERLAP', 150)),
-            embedding_model=os.getenv('EMBEDDING_MODEL', 'gemini-embedding-2'),
+            embedding_model=os.getenv('EMBEDDING_MODEL', 'gemini-embedding-001'),
             llm_model=os.getenv('LLM_MODEL', 'gemini-2.5-flash'),
             retriever_k=int(os.getenv('RETRIEVER_K', 4)),
             request_timeout=int(os.getenv('REQUEST_TIMEOUT', 30)),

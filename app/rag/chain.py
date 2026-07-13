@@ -12,8 +12,7 @@ from .vectorstore import get_vectorstore
 RagCallable = Callable[[str], Dict[str, Any]]
 
 # Chunks scoring below this are treated as noise rather than evidence and
-# excluded from the LLM's context. Chroma's relevance score is a normalized
-# similarity in [0, 1] (higher = more relevant).
+# excluded from the LLM's context.
 MIN_RELEVANCE_SCORE = 0.55
 
 # If nothing clears MIN_RELEVANCE_SCORE (e.g. a borderline phrasing like
@@ -36,10 +35,10 @@ def _get_llm(model_name: str) -> ChatGoogleGenerativeAI:
 
 def get_rag_chain(config: Config, profile_id: str) -> RagCallable:
     """
-    Build a RAG pipeline scoped to a single profile's Chroma collection.
+    Build a RAG pipeline scoped to a single profile's Pinecone namespace.
 
     Called per-request with the profile_id from the incoming question, so two
-    different profile_ids always retrieve from two different collections and
+    different profile_ids always retrieve from two different namespaces and
     can never answer using each other's data. The embedding model and LLM
     client are cached process-wide (see _get_embeddings / _get_llm); only the
     lightweight retriever/chain wiring is rebuilt per call.
@@ -62,7 +61,14 @@ def get_rag_chain(config: Config, profile_id: str) -> RagCallable:
         # is what was silently dropping real matches (e.g. a Node.js mention
         # buried in one experience entry) when other, less relevant chunks
         # crowded a too-small fixed k.
-        scored: List[Tuple[Document, float]] = vectorstore.similarity_search_with_relevance_scores(
+        #
+        # NOTE: Pinecone's score (cosine metric) is not the same normalized
+        # [0,1] "relevance score" Chroma computed for us — it's raw cosine
+        # similarity, roughly in [0,1] for normalized embeddings like
+        # text-embedding-004 but not guaranteed. If MIN_RELEVANCE_SCORE feels
+        # too strict/loose after switching to Pinecone, log a few real scores
+        # and retune it — it's not a universal constant.
+        scored: List[Tuple[Document, float]] = vectorstore.similarity_search_with_score(
             question, k=max(config.retriever_k, 8)
         )
         scored.sort(key=lambda pair: pair[1], reverse=True)
